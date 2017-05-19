@@ -1,0 +1,55 @@
+OS := $(shell uname)
+
+## This should be updated to point at your adevs installation
+DEVSPATH=$(HOME)/Temp/adevs-2.5
+
+CXX = g++
+INCFLAGS = -I.. -I../ReferenceODE -I$(DEVSPATH)/include
+
+## Note that the GNU scientific library is required for random variate
+## generation
+LDFLAGS = -L$(DEVSPATH)/src -lgsl -ladevs -lm
+
+## ## Compile flags: ##
+##
+## If GERMS partnership formation is desired, then the -DGERMS flag
+## must be set, and the Makefile must specify that the executable
+## depends on PshipClassic.o rather than Partnership.o
+##
+## To replicate the KZN ODE, the IBM must be compiled _without_ -DGERMS 
+##
+CODEFLAGS += -DHISTORY         ## store event histories (discarded otherwise to reduce memory requirements)
+## CODEFLAGS += -DPARTNER_HISTORY ## with HISTORY, extends histories to include all partnership formation and dissolution
+## CODEFLAGS += -DGERMS        ## GERMS partnership module used (PshipClassic otherwise)
+CODEFLAGS += -DTYPE_TWO_AGE    ## aging simulated as a poisson process (deterministic otherwise)
+CODEFLAGS += -DGEOMETRIC       ## partnership formation is the geometric mean of partners' preferences (arithmetic mean otherwise)
+
+## DEBUGFLAGS = -Wall -g
+DEBUGFLAGS = -Wall -O2
+ARCHFLAGS = -D$(OS)
+CXXFLAGS += $(DEBUGFLAGS) $(CODEFLAGS) $(ARCHFLAGS) $(INCFLAGS)
+
+PROGS=ode-test-progression test-demographer test-progression test-transmission test-partnership
+
+all: $(PROGS)
+
+ode-test-progression: ode-test-progression.cpp ../ReferenceODE/Model.o ../ReferenceODE/attributes.o
+
+test-demographer: test-demographer.cpp ../Bookkeeper.o ../Person.o ../ModelTypes.o ../Demographer.o
+test-progression: test-progression.cpp ../Bookkeeper.o ../Person.o ../ModelTypes.o ../Demographer.o ../Progression.o
+
+test-transmission: test-transmission.cpp ../Person.o ../ModelTypes.o ../Transmission.o
+	$(CXX) $(CXXFLAGS) -DHISTORY -o $@ $^ $(LDFLAGS)
+
+test-partnership: test-partnership.cpp ../Person.o ../ModelTypes.o ../Transmission.o
+	$(CXX) $(CXXFLAGS) -DHISTORY -o $@ $^ $(LDFLAGS)
+
+
+.o: $@.cpp $@.H
+	$(CXX) $(CXXFLAGS) -c $@ $^
+
+.cpp: $@.cpp
+	$(CXX) $(CXXFLAGS) -o $@ $^ $(LDFLAGS)
+
+clean:
+	rm -rf *.dSYM *.o *~ $(PROGS)
